@@ -73,7 +73,7 @@
         const td = tr.querySelectorAll('td');
         const num = cellText(td[2]);
         const subject = cellText(td[3]);
-        const hijri = cellText(td[6]);
+        const hijri = cellText(td[7]);
         const greg = hijriToGregorian(hijri);
         if(num && subject && greg) rows.push(`${num}\t${greg}\t${subject}`);
       }
