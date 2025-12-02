@@ -1,20 +1,22 @@
 // ==UserScript==
-// @name         نسخ أرقام المعاملات (المتابعة)
+// @name         نسخ أرقام المعاملات (المتابعة) تجربة يوزرات تحديداً
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.3
 // @description  Alt+C ينسخ: رقم المعاملة + التاريخ الميلادي + الموضوع
 // @match        http://rasel/CTS/*
 // @run-at       document-end
 // @grant        none
 // ==/UserScript==
-
 (() => {
   'use strict';
+
+  // التحقق من المستخدم المحدد
+  const ALLOWED_USERS = ['203498', '136435'];
+  const checkUser = (doc) => ALLOWED_USERS.includes(doc.querySelector('#UserCodeHidden')?.value);
 
   const AR = '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹';
   const toAscii = s => String(s||'').replace(/[٠-٩۰-۹]/g, c => String(AR.indexOf(c)%10));
   const cellText = td => (td?.getAttribute('title') || td?.textContent || '').replace(/\s+/g,' ').trim();
-
   const HIJ = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{year:'numeric',month:'numeric',day:'numeric',timeZone:'UTC'});
   const OUT = new Intl.DateTimeFormat('en-US',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'});
 
@@ -54,16 +56,15 @@
 
   function setup(doc){
     if(!doc.querySelector('#MailDataTable') || doc._installedCopy) return;
-    doc._installedCopy = true;
+    if(!checkUser(document)) return; // التحقق من الصفحة الرئيسية
 
+    doc._installedCopy = true;
     doc.addEventListener('keydown', async e=>{
       if(!(e.altKey && e.key.toLowerCase()==='c')) return;
       e.preventDefault();
-
       const checked = [...doc.querySelectorAll('#MailDataTable tbody tr input[type="checkbox"]:checked:not(#SelectAllCheckBox)')]
         .map(cb=>cb.closest('tr'));
       if(!checked.length) return alert('لم يتم تحديد معاملات!');
-
       const rows = [];
       for(const tr of checked){
         const td = tr.querySelectorAll('td');
@@ -74,7 +75,6 @@
         if(num && subject && greg) rows.push(`${num}\t${greg}\t${subject}`);
       }
       if(!rows.length) return alert('لا توجد بيانات صالحة للنسخ!');
-
       await copyText(rows.join('\n'));
       alert(`✓ تم نسخ ${rows.length} معاملة`);
     });
