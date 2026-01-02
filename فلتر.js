@@ -12,7 +12,7 @@
     'use strict';
 
     // التحقق من المستخدم المحدد
-    const ALLOWED_USERS = ['0', '1'];
+    const ALLOWED_USERS = ['203498', '1'];
     const checkUser = () => ALLOWED_USERS.includes(document.querySelector('#UserCodeHidden')?.value);
 
     // إيقاف السكريبت إذا لم يكن المستخدم مسموح
