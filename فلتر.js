@@ -12,7 +12,7 @@
     'use strict';
 
     // ✅ التحقق من المستخدم المحدد
-    const ALLOWED_USERS = ['1', '136435']; // عدّل اليوزرات هنا
+    const ALLOWED_USERS = ['203498', '136435']; // عدّل اليوزرات هنا
     const getUserCode = () => document.querySelector('#UserCodeHidden')?.value?.trim() || '';
 
     function waitForUserCode(timeoutMs = 5000) {
