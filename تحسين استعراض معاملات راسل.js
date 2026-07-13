@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         تحسين استعراض معاملات راسل
 // @namespace    http://rasel/CTS/
-// @version      2.9
+// @version      3.0
 // @description  تحسينات تبويبات راسل
 // @match        http://rasel/CTS/*
 // @grant        none
@@ -25,7 +25,20 @@
       ids.forEach(id => {
         const el = document.getElementById(id);
         if (!el || !el.value) return;
-        el.value = el.value.replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, '$3/$2/$1');
+        const reversed = el.value.replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, '$3/$2/$1');
+        if (reversed === el.value) return;
+
+        // لا نعدل el.value إطلاقاً (الحقل readonly ومرتبط بـ relatedfield وبـ onChangeDate)
+        // بدلاً من ذلك نعرض طبقة نصية فوق الحقل بصيغة معكوسة للعرض فقط
+        const parent = el.parentElement;
+        if (parent) parent.style.position = 'relative';
+
+        const overlay = document.createElement('span');
+        overlay.textContent = reversed;
+        overlay.className = 'p-date-overlay';
+        overlay.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; padding-inline-start:8px; background:inherit; pointer-events:none; z-index:1;';
+        el.style.color = 'transparent';
+        el.insertAdjacentElement('afterend', overlay);
       });
     };
     const observer = new MutationObserver(fix);
