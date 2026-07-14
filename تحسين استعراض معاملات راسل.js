@@ -176,10 +176,19 @@
   };
 
   const wait = setInterval(() => {
-    if (document.getElementById('jstreeInbox')?.querySelector('li[id^="file_"]')) {
+    const tree = document.getElementById('jstreeInbox');
+    if (!tree) return;
+    // إذا فيه ملفات فعلية أو الشجرة انتهت من التحميل (busy=false) بدون ملفات، ننفذ run()
+    const hasFiles = tree.querySelector('li[id^="file_"]');
+    const finishedLoading = tree.getAttribute('aria-busy') === 'false' && tree.querySelector('li[id^="folder_"]');
+    if (hasFiles || finishedLoading) {
       clearInterval(wait);
       setTimeout(run, 300);
     }
   }, 200);
-  setTimeout(() => clearInterval(wait), 30000);
+  setTimeout(() => {
+    clearInterval(wait);
+    // حماية أخيرة: نضمن رجوع الإظهار حتى لو ما تحقق أي شرط أعلاه
+    style.textContent = '#jstreeInbox { visibility: visible; }';
+  }, 30000);
 })();
