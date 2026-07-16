@@ -132,7 +132,7 @@
         if (node.nodeType === 3 && node.textContent.trim()) {
           let text = node.textContent
             .replaceAll('_', ' ')
-            .replace(/[a-f0-9]{40,}\.temp2\.pdf/i, 'أمانة منطقة الرياض مكتب الأمين')
+            .replace(/[a-f0-9]{40,}(\.temp2)?\.pdf/i, 'وزارة البلديات والإسكان')
             .replace(/\S+\.(pdf|doc|docx|xlsx|xls|png|jpg|jpeg)\s*/gi, '')
             .trim();
 
