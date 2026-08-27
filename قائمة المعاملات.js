@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         قائمة المعاملات1
 // @namespace    http://rasel/
-// @version      3.8
+// @version      3.9
 // @description  إدارة قائمة المعاملات مع النسخ واللصق فقط في حقل البحث
 // @match        http://rasel/CTS/CTSC*
 // @grant        GM_setClipboard
@@ -274,15 +274,33 @@
         hideInputOverlay();
     };
 
+    // ── إيجاد جذر شجرة jstree بطريقة عامة (لا تعتمد على معرف عنصر ثابت) ──
+    function findTreeRootUl() {
+        // المحاولة 1: الحاوية القياسية لجذر jstree
+        let rootUl = document.querySelector('.jstree-container-ul');
+        if (rootUl) return rootUl;
+
+        // المحاولة 2: أب أي عنصر من عناصر المستوى الأول في الشجرة
+        const topLevelItem = document.querySelector('li[role="treeitem"][aria-level="1"]');
+        if (topLevelItem && topLevelItem.parentElement) return topLevelItem.parentElement;
+
+        // المحاولة 3: أب أي عنصر jstree-leaf/jstree-node بشكل عام
+        const anyNode = document.querySelector('.jstree-node');
+        if (anyNode && anyNode.parentElement) return anyNode.parentElement;
+
+        return null;
+    }
+
     // ── إضافة العنصر في شجرة الـ jstree ───────────────────
     function injectNotesTreeItem() {
-        const marasalatiItem = document.getElementById('95818');
-        if (!marasalatiItem) return;
+        if (document.getElementById('notes_item')) return; // تجنب التكرار
 
-        const rootUl = marasalatiItem.parentElement;
+        const rootUl = findTreeRootUl();
         if (!rootUl) return;
 
-        marasalatiItem.classList.remove('jstree-last');
+        // إزالة علامة "آخر عنصر" عن العنصر الحالي الأخير (إن وجد) حتى تنتقل الحدود السفلية لعنصرنا
+        const lastItem = rootUl.querySelector(':scope > li.jstree-last');
+        if (lastItem) lastItem.classList.remove('jstree-last');
 
         const newLi = document.createElement('li');
         newLi.setAttribute('role', 'treeitem');
@@ -320,6 +338,7 @@
             togglePanel();
         });
 
+        // إلحاق العنصر دائمًا كآخر عنصر في القائمة، أيًا كان عدد العناصر الموجودة
         rootUl.appendChild(newLi);
 
         if (saved.notes.length > 0) {
@@ -332,5 +351,14 @@
     } else {
         window.addEventListener('load', injectNotesTreeItem);
     }
+
+    // بعض إصدارات jstree تُعيد بناء الشجرة بعد تحميل الصفحة (تحميل غير متزامن)،
+    // لذا نراقب التغييرات ونعيد المحاولة إن اختفى العنصر أو لم تُبنَ الشجرة بعد عند التحميل
+    const treeObserver = new MutationObserver(() => {
+        if (!document.getElementById('notes_item')) {
+            injectNotesTreeItem();
+        }
+    });
+    treeObserver.observe(document.body, { childList: true, subtree: true });
 
 })();
