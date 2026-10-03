@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.5
+// @version      28.6
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -19,42 +19,46 @@
     // ---------------------------------------------------------
     const ALLOWED_EMPLOYEES = ['136435', '203498', '3724', '134443', '221188'];
 
-    const EMP_ID_KEY = 'rasel_emp_id';
-    const getCachedEmpId = () => { try { return localStorage.getItem(EMP_ID_KEY); } catch (e) { return null; } };
+    // نتيجة التحقق تُحفظ في المتصفح ('1' مسموح / '0' غير مسموح) لتستخدمها الصفحات التي لا تحتوي رقم الموظف مثل التتبع
+    const ALLOWED_FLAG_KEY = 'rasel_emp_allowed';
+    const getFlag = () => { try { return localStorage.getItem(ALLOWED_FLAG_KEY); } catch (e) { return null; } };
+    const setFlag = (v) => { try { localStorage.setItem(ALLOWED_FLAG_KEY, v); } catch (e) {} };
 
-    // يبحث في الصفحة نفسها، والصفحة الرئيسية (لو كانت إطاراً)، والنافذة التي فتحتها (لو كانت نافذة مستقلة)
-    function getEmpId() {
-        const docs = [document];
-        try { if (window.top !== window) docs.push(window.top.document); } catch (e) {}
-        try { if (window.opener) docs.push(window.opener.document, window.opener.top.document); } catch (e) {}
+    // يجمع كل أرقام الموظف الموجودة، بدءاً بالصفحة الرئيسية ثم النافذة التي فتحت الصفحة ثم الصفحة نفسها
+    function getEmpIds() {
+        const docs = [];
+        try { docs.push(window.top.document); } catch (e) {}
+        try { if (window.opener) docs.push(window.opener.top.document, window.opener.document); } catch (e) {}
+        docs.push(document);
+        const ids = [];
         for (const d of docs) {
             for (const id of ['UserCodeHidden', 'ContactGcIdHidden']) {
                 const v = d?.getElementById(id)?.value?.trim();
-                if (v) {
-                    try { localStorage.setItem(EMP_ID_KEY, v); } catch (e) {}
-                    return v;
-                }
+                if (v && !ids.includes(v)) ids.push(v);
             }
         }
-        return null;
+        return ids;
     }
 
-    // إذا لم يظهر الرقم في الصفحة خلال ثانيتين (مثل صفحة التتبع)، نعتمد الرقم المحفوظ من الصفحة الرئيسية
-    function waitForEmpId(timeout = 20000, cacheAfter = 2000) {
-        return new Promise(resolve => {
-            const start = Date.now();
-            (function check() {
-                const elapsed = Date.now() - start;
-                const id = getEmpId() || (elapsed > cacheAfter ? getCachedEmpId() : null);
-                if (id || elapsed > timeout) return resolve(id);
-                setTimeout(check, 300);
-            })();
-        });
-    }
+    let started = false;
+    const start = () => { if (!started) { started = true; main(); } };
 
-    waitForEmpId().then(id => {
-        if (ALLOWED_EMPLOYEES.includes(id)) main();
-    });
+    // إذا سبق التحقق بنجاح نبدأ فوراً (كما كان السكربت قبل إضافة التحقق)
+    if (getFlag() === '1') start();
+
+    // ونتحقق من الرقم الفعلي ونحدّث النتيجة المحفوظة
+    (function check(tries = 0) {
+        const ids = getEmpIds();
+        if (ids.length) {
+            const allowed = ids.some(id => ALLOWED_EMPLOYEES.includes(id));
+            console.log('[rasel] أرقام الموظف:', ids, '| مسموح:', allowed);
+            setFlag(allowed ? '1' : '0');
+            if (allowed) start();
+            return;
+        }
+        if (tries < 66) setTimeout(() => check(tries + 1), 300);
+        else console.log('[rasel] لم يُعثر على رقم الموظف في هذه الصفحة | النتيجة المحفوظة:', getFlag());
+    })();
 
     function main() {
 
