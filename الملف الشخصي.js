@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.7
+// @version      28.8
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -13,54 +13,6 @@
 
 (function() {
     'use strict';
-
-    // ---------------------------------------------------------
-    // 0. التحقق من رقم الموظف (Employee Gate)
-    // ---------------------------------------------------------
-    const ALLOWED_EMPLOYEES = ['136435', '203498', '3724', '134443', '221188'];
-
-    // نتيجة التحقق تُحفظ في المتصفح ('1' مسموح / '0' غير مسموح) لتستخدمها الصفحات التي لا تحتوي رقم الموظف مثل التتبع
-    const ALLOWED_FLAG_KEY = 'rasel_emp_allowed';
-    const getFlag = () => { try { return localStorage.getItem(ALLOWED_FLAG_KEY); } catch (e) { return null; } };
-    const setFlag = (v) => { try { localStorage.setItem(ALLOWED_FLAG_KEY, v); } catch (e) {} };
-
-    // يجمع كل أرقام الموظف الموجودة، بدءاً بالصفحة الرئيسية ثم النافذة التي فتحت الصفحة ثم الصفحة نفسها
-    function getEmpIds() {
-        const docs = [];
-        try { docs.push(window.top.document); } catch (e) {}
-        try { if (window.opener) docs.push(window.opener.top.document, window.opener.document); } catch (e) {}
-        docs.push(document);
-        const ids = [];
-        for (const d of docs) {
-            for (const id of ['UserCodeHidden', 'ContactGcIdHidden']) {
-                const v = d?.getElementById(id)?.value?.trim();
-                if (v && !ids.includes(v)) ids.push(v);
-            }
-        }
-        return ids;
-    }
-
-    let started = false;
-    const start = () => { if (!started) { started = true; main(); } };
-
-    // إذا سبق التحقق بنجاح نبدأ فوراً (كما كان السكربت قبل إضافة التحقق)
-    if (getFlag() === '1') start();
-
-    // ونتحقق من الرقم الفعلي ونحدّث النتيجة المحفوظة
-    (function check(tries = 0) {
-        const ids = getEmpIds();
-        if (ids.length) {
-            const allowed = ids.some(id => ALLOWED_EMPLOYEES.includes(id));
-            console.log('[rasel] أرقام الموظف:', ids, '| مسموح:', allowed);
-            setFlag(allowed ? '1' : '0');
-            if (allowed) start();
-            return;
-        }
-        if (tries < 66) setTimeout(() => check(tries + 1), 300);
-        else console.log('[rasel] لم يُعثر على رقم الموظف في هذه الصفحة | النتيجة المحفوظة:', getFlag());
-    })();
-
-    function main() {
 
     const STORAGE_KEY_CALENDAR = 'rasel_calendar_type';
     const STORAGE_KEY_ATTACHMENT = 'rasel_attachment_order';
@@ -1372,13 +1324,10 @@
         initPinEngine();
     }
 
-    // main() قد يبدأ بعد اكتمال تحميل الصفحة (بانتظار رقم الموظف)، فننفّذ مباشرة إن فات الحدث
-    const onReady = () => {
+    document.addEventListener('DOMContentLoaded', () => {
         safeExecute();
         runAdvancedEnhancements();
-    };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
-    else onReady();
+    });
 
     let pinTimeout;
     const pinObserver = new MutationObserver(() => {
@@ -1396,6 +1345,5 @@
     });
     pinObserver.observe(document.documentElement || document.body, { childList: true, subtree: true });
 
-    } // end main
 })();
 
