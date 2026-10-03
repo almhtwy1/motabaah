@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.1
+// @version      28.2
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -13,6 +13,40 @@
 
 (function() {
     'use strict';
+
+    // ---------------------------------------------------------
+    // 0. التحقق من رقم الموظف (Employee Gate)
+    // ---------------------------------------------------------
+    const ALLOWED_EMPLOYEES = ['1234567', '54321'];
+
+    function getEmpId() {
+        const docs = [document];
+        try { if (window.top !== window) docs.push(window.top.document); } catch (e) {}
+        for (const d of docs) {
+            for (const id of ['UserCodeHidden', 'ContactGcIdHidden']) {
+                const v = d.getElementById(id)?.value?.trim();
+                if (v) return v;
+            }
+        }
+        return null;
+    }
+
+    function waitForEmpId(timeout = 20000) {
+        return new Promise(resolve => {
+            const start = Date.now();
+            (function check() {
+                const id = getEmpId();
+                if (id || Date.now() - start > timeout) return resolve(id);
+                setTimeout(check, 300);
+            })();
+        });
+    }
+
+    waitForEmpId().then(id => {
+        if (ALLOWED_EMPLOYEES.includes(id)) main();
+    });
+
+    function main() {
 
     const STORAGE_KEY_CALENDAR = 'rasel_calendar_type';
     const STORAGE_KEY_ATTACHMENT = 'rasel_attachment_order';
@@ -1345,5 +1379,6 @@
     });
     pinObserver.observe(document.documentElement || document.body, { childList: true, subtree: true });
 
+    } // end main
 })();
 
