@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.8
+// @version      28.9
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -484,8 +484,8 @@
                         }
                         // الشرط الثاني: الصفوف الثلاثة كلها خارج A و B (أو لا يوجد صف فوقه) -> أحمر
                         else {
-                            toCell.style.setProperty('background-color', '#ff2a2a', 'important');
-                            toCell.style.setProperty('color', '#ffffff', 'important');
+                            toCell.style.setProperty('background-color', '#ffb3b3', 'important');
+                            toCell.style.setProperty('color', '#7a0000', 'important');
                         }
                     }
                 });
