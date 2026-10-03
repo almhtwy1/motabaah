@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.3
+// @version      28.4
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -17,7 +17,7 @@
     // ---------------------------------------------------------
     // 0. التحقق من رقم الموظف (Employee Gate)
     // ---------------------------------------------------------
-    const ALLOWED_EMPLOYEES = ['1234567', '54321', '203498'];
+    const ALLOWED_EMPLOYEES = ['136435', '203498', '3724', '134443', '221188'];
 
     function getEmpId() {
         const docs = [document];
