@@ -17,7 +17,7 @@
     // ---------------------------------------------------------
     // 0. التحقق من رقم الموظف (Employee Gate)
     // ---------------------------------------------------------
-    const ALLOWED_EMPLOYEES = ['203498', '54321'];
+    const ALLOWED_EMPLOYEES = ['1234567', '54321', '203498'];
 
     function getEmpId() {
         const docs = [document];
@@ -1358,10 +1358,13 @@
         initPinEngine();
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // main() قد يبدأ بعد اكتمال تحميل الصفحة (بانتظار رقم الموظف)، فننفّذ مباشرة إن فات الحدث
+    const onReady = () => {
         safeExecute();
         runAdvancedEnhancements();
-    });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
+    else onReady();
 
     let pinTimeout;
     const pinObserver = new MutationObserver(() => {
