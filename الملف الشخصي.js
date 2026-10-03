@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      28.4
+// @version      28.5
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -19,24 +19,34 @@
     // ---------------------------------------------------------
     const ALLOWED_EMPLOYEES = ['136435', '203498', '3724', '134443', '221188'];
 
+    const EMP_ID_KEY = 'rasel_emp_id';
+    const getCachedEmpId = () => { try { return localStorage.getItem(EMP_ID_KEY); } catch (e) { return null; } };
+
+    // يبحث في الصفحة نفسها، والصفحة الرئيسية (لو كانت إطاراً)، والنافذة التي فتحتها (لو كانت نافذة مستقلة)
     function getEmpId() {
         const docs = [document];
         try { if (window.top !== window) docs.push(window.top.document); } catch (e) {}
+        try { if (window.opener) docs.push(window.opener.document, window.opener.top.document); } catch (e) {}
         for (const d of docs) {
             for (const id of ['UserCodeHidden', 'ContactGcIdHidden']) {
-                const v = d.getElementById(id)?.value?.trim();
-                if (v) return v;
+                const v = d?.getElementById(id)?.value?.trim();
+                if (v) {
+                    try { localStorage.setItem(EMP_ID_KEY, v); } catch (e) {}
+                    return v;
+                }
             }
         }
         return null;
     }
 
-    function waitForEmpId(timeout = 20000) {
+    // إذا لم يظهر الرقم في الصفحة خلال ثانيتين (مثل صفحة التتبع)، نعتمد الرقم المحفوظ من الصفحة الرئيسية
+    function waitForEmpId(timeout = 20000, cacheAfter = 2000) {
         return new Promise(resolve => {
             const start = Date.now();
             (function check() {
-                const id = getEmpId();
-                if (id || Date.now() - start > timeout) return resolve(id);
+                const elapsed = Date.now() - start;
+                const id = getEmpId() || (elapsed > cacheAfter ? getCachedEmpId() : null);
+                if (id || elapsed > timeout) return resolve(id);
                 setTimeout(check, 300);
             })();
         });
