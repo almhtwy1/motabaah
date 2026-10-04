@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      29.1
+// @version      29.2
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -506,7 +506,7 @@
         if (document.head || document.documentElement) {
             const styleAlert = document.createElement('style');
             styleAlert.innerHTML = `
-                .sweet-alert, .sweet-overlay {
+                html.rasel-hide-swal .sweet-alert, html.rasel-hide-swal .sweet-overlay {
                     display: none !important;
                     visibility: hidden !important;
                     opacity: 0 !important;
@@ -1022,10 +1022,17 @@
 
                 showSaveToast(toastMsg);
 
-                setTimeout(() => {
-                    const alerts = document.querySelectorAll('.sweet-alert, .sweet-overlay');
-                    alerts.forEach(el => el.remove());
-                }, 10);
+                // إخفاء رسالة الحفظ فقط (مؤقتاً) دون التأثير على نوافذ التأكيد في باقي الصفحات
+                const root = document.documentElement;
+                root.classList.add('rasel-hide-swal');
+                clearTimeout(root._raselSwalTimer);
+                root._raselSwalTimer = setTimeout(() => {
+                    let closed = false;
+                    try { if (typeof window.swal?.close === 'function') { window.swal.close(); closed = true; } } catch (e) {}
+                    if (!closed) document.querySelectorAll('.sweet-alert, .sweet-overlay').forEach(el => el.remove());
+                    document.body?.classList.remove('stop-scrolling');
+                    root.classList.remove('rasel-hide-swal');
+                }, 2000);
             }, true);
         }
     }
