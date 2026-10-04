@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      29.0
+// @version      29.1
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -400,27 +400,27 @@
 
             isFetching = true;
             try {
-                const [treeRes, listRes] = await Promise.all([
-                    fetch(`http://rasel/CTS/CTSC?C=GetTrackingHistory&token=&DKey=${docId}&transferId=${transferId}&documentCategoryId=&transferStatus=`, { credentials: "include" }),
-                    fetch(`http://rasel/CTS/CTSC?C=documenttracking&token=&documentId=${docId}&delegatedId=`, { credentials: "include" })
-                ]);
-                const [treeData, listData] = await Promise.all([treeRes.json(), listRes.json()]);
+                const treeRes = await fetch(`http://rasel/CTS/CTSC?C=GetTrackingHistory&token=&DKey=${docId}&transferId=${transferId}&documentCategoryId=&transferStatus=`, { credentials: "include" });
+                const treeData = await treeRes.json();
 
-                const copyIds = new Set();
+                // صيغة اسم العقدة: id~~الجهة~المستخدم~الوقت-التاريخ~...~علامة النسخة~icon-...~...
+                // علامة النسخة هي القيمة التي تسبق icon- مباشرة (true = نسخة)
+                const nodes = [];
                 const parseTree = node => {
                     if (!node) return;
-                    if ((node.name || "").split("~").some(p => p.trim() === "true")) copyIds.add(String(node.id));
+                    const parts = (node.name || "").split("~");
+                    const iconIdx = parts.findIndex(p => p.startsWith("icon-"));
+                    const dateM = (parts[4] || '').match(/(20\d{2})-(\d{2})-(\d{2})/);
+                    nodes.push({
+                        names: [normalize(parts[2]), normalize(parts[3])].filter(Boolean),
+                        date: dateM ? `${dateM[1]}${dateM[2]}${dateM[3]}` : '',
+                        isCopy: iconIdx > 0 && parts[iconIdx - 1].trim() === "true"
+                    });
                     if (node.children) node.children.forEach(parseTree);
                 };
                 parseTree(treeData);
 
-                rowStatusCache = listData.map(r => ({
-                    text: normalize(Object.values(r).filter(v => typeof v === 'string').join(' ')),
-                    isCopy: copyIds.has(String(r.TransferId)) ||
-                            (r.PurposeAr || '').includes("متابعة") ||
-                            (r.ToUserAr || '').includes("المتابعة")
-                }));
-
+                rowStatusCache = nodes;
                 fastApply();
             } catch(e) {
             } finally {
@@ -438,7 +438,6 @@
                     const cells = row.cells;
                     if (!cells || cells.length < 5) return;
 
-                    const fromCell = cells[0];
                     const toCell = cells[1];
                     const toText = (toCell.textContent || '') + ' ' + (toCell.title || '');
 
@@ -446,24 +445,16 @@
                     const related = isNorth(toText) || rowHasListedName(row);
                     row.classList.toggle(DIM_CLASS, !related);
 
-                    // 2. تلوين الأصل والنسخة الأساسي من الشجرة (أخضر للأصل، وأصفر هادئ للنسخة)
-                    // المطابقة بمحتوى الصف (من + إلى) بدل رقم الترتيب، وعند التكرار نأخذ الأقرب ترتيباً
+                    // 2. تلوين الأصل والنسخة من الشجرة (أخضر للأصل، وأصفر هادئ للنسخة)
+                    // المطابقة باسم الجهة/المستخدم في خانة «إلى»، وعند التكرار نفضّل العقدة التي لها نفس التاريخ
                     let isCopy = false;
-                    const fromN = normalize(fromCell.textContent);
                     const toN = normalize(toCell.textContent);
-                    let match = null, bestDist = Infinity;
                     if (rowStatusCache && toN) {
-                        rowStatusCache.forEach((r, i) => {
-                            if (r.text.includes(toN) && (!fromN || r.text.includes(fromN))) {
-                                const d = Math.abs(i - idx);
-                                if (d < bestDist) { bestDist = d; match = r; }
-                            }
-                        });
-                    }
-                    if (match) {
-                        isCopy = match.isCopy;
-                    } else {
-                        isCopy = (toText + ' ' + (cells[4]?.textContent || '')).includes("متابعة");
+                        const candidates = rowStatusCache.filter(n => n.names.includes(toN));
+                        const dm = (cells[2]?.textContent || '').match(/(20\d{2})[-/](\d{1,2})[-/](\d{1,2})|(\d{1,2})[-/](\d{1,2})[-/](20\d{2})/);
+                        const rowDate = dm ? (dm[1] ? dm[1] + dm[2].padStart(2, '0') + dm[3].padStart(2, '0') : dm[6] + dm[5].padStart(2, '0') + dm[4].padStart(2, '0')) : '';
+                        const match = candidates.find(n => rowDate && n.date === rowDate) || candidates[0];
+                        if (match) isCopy = match.isCopy;
                     }
 
                     toCell.style.setProperty('background-color', isCopy ? '#fff3cd' : '#d4edda', 'important');
