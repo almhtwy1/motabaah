@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         قائمة المعاملات1
+// @name         قائمة المعاملات
 // @namespace    http://rasel/
-// @version      3.9
+// @version      4.0
 // @description  إدارة قائمة المعاملات مع النسخ واللصق فقط في حقل البحث
 // @match        http://rasel/CTS/CTSC*
 // @grant        GM_setClipboard
@@ -31,6 +31,47 @@
 
     const saved = loadState();
     const copiedSet = new Set(saved.copied);
+
+    // ── طابور المعاملات ───────────────────────────────────────
+    let isProcessing = false;
+    const taskQueue = [];
+
+    function enqueue(task) {
+        taskQueue.push(task);
+        if (!isProcessing) processNext();
+    }
+
+    function processNext() {
+        if (taskQueue.length === 0) { isProcessing = false; return; }
+        isProcessing = true;
+        const task = taskQueue.shift();
+        task(() => processNext());
+    }
+
+    function openTransaction(n, done) {
+        let refInput = document.getElementById('ReferenceNumberInput');
+        let iframeWin = window;
+
+        if (!refInput) {
+            for (const frame of document.querySelectorAll('iframe')) {
+                try {
+                    const inp = frame.contentDocument && frame.contentDocument.getElementById('ReferenceNumberInput');
+                    if (inp) { refInput = inp; iframeWin = frame.contentWindow; break; }
+                } catch(e) {}
+            }
+        }
+
+        if (!refInput) { done(); return; }
+
+        const iframeDoc = refInput.ownerDocument;
+        refInput.value = String(n);
+        refInput.dispatchEvent(new Event('change', { bubbles: true }));
+        refInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
+        refInput.dispatchEvent(new KeyboardEvent('keyup', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
+        refInput.focus();
+
+        done();
+    }
 
     // ── اللوحة المنبثقة ────────────────────────────
     const panel = document.createElement('div');
@@ -239,6 +280,8 @@
                     setTimeout(() => { li.style.outline = 'none'; }, 600);
                     updateTitle();
                     saveState();
+
+                    enqueue((done) => openTransaction(n, done));
                 }
             };
 
@@ -274,33 +317,15 @@
         hideInputOverlay();
     };
 
-    // ── إيجاد جذر شجرة jstree بطريقة عامة (لا تعتمد على معرف عنصر ثابت) ──
-    function findTreeRootUl() {
-        // المحاولة 1: الحاوية القياسية لجذر jstree
-        let rootUl = document.querySelector('.jstree-container-ul');
-        if (rootUl) return rootUl;
-
-        // المحاولة 2: أب أي عنصر من عناصر المستوى الأول في الشجرة
-        const topLevelItem = document.querySelector('li[role="treeitem"][aria-level="1"]');
-        if (topLevelItem && topLevelItem.parentElement) return topLevelItem.parentElement;
-
-        // المحاولة 3: أب أي عنصر jstree-leaf/jstree-node بشكل عام
-        const anyNode = document.querySelector('.jstree-node');
-        if (anyNode && anyNode.parentElement) return anyNode.parentElement;
-
-        return null;
-    }
-
     // ── إضافة العنصر في شجرة الـ jstree ───────────────────
     function injectNotesTreeItem() {
-        if (document.getElementById('notes_item')) return; // تجنب التكرار
+        const marasalatiItem = document.getElementById('95818');
+        if (!marasalatiItem) return;
 
-        const rootUl = findTreeRootUl();
+        const rootUl = marasalatiItem.parentElement;
         if (!rootUl) return;
 
-        // إزالة علامة "آخر عنصر" عن العنصر الحالي الأخير (إن وجد) حتى تنتقل الحدود السفلية لعنصرنا
-        const lastItem = rootUl.querySelector(':scope > li.jstree-last');
-        if (lastItem) lastItem.classList.remove('jstree-last');
+        marasalatiItem.classList.remove('jstree-last');
 
         const newLi = document.createElement('li');
         newLi.setAttribute('role', 'treeitem');
@@ -338,7 +363,6 @@
             togglePanel();
         });
 
-        // إلحاق العنصر دائمًا كآخر عنصر في القائمة، أيًا كان عدد العناصر الموجودة
         rootUl.appendChild(newLi);
 
         if (saved.notes.length > 0) {
@@ -351,14 +375,5 @@
     } else {
         window.addEventListener('load', injectNotesTreeItem);
     }
-
-    // بعض إصدارات jstree تُعيد بناء الشجرة بعد تحميل الصفحة (تحميل غير متزامن)،
-    // لذا نراقب التغييرات ونعيد المحاولة إن اختفى العنصر أو لم تُبنَ الشجرة بعد عند التحميل
-    const treeObserver = new MutationObserver(() => {
-        if (!document.getElementById('notes_item')) {
-            injectNotesTreeItem();
-        }
-    });
-    treeObserver.observe(document.body, { childList: true, subtree: true });
 
 })();
