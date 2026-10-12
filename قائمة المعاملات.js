@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         قائمة المعاملات
 // @namespace    http://rasel/
-// @version      4.0
+// @version      4.1
 // @description  إدارة قائمة المعاملات مع النسخ واللصق فقط في حقل البحث
 // @match        http://rasel/CTS/CTSC*
 // @grant        GM_setClipboard
@@ -50,20 +50,18 @@
 
     function openTransaction(n, done) {
         let refInput = document.getElementById('ReferenceNumberInput');
-        let iframeWin = window;
 
         if (!refInput) {
             for (const frame of document.querySelectorAll('iframe')) {
                 try {
                     const inp = frame.contentDocument && frame.contentDocument.getElementById('ReferenceNumberInput');
-                    if (inp) { refInput = inp; iframeWin = frame.contentWindow; break; }
-                } catch(e) {}
+                    if (inp) { refInput = inp; break; }
+                } catch (e) {}
             }
         }
 
         if (!refInput) { done(); return; }
 
-        const iframeDoc = refInput.ownerDocument;
         refInput.value = String(n);
         refInput.dispatchEvent(new Event('change', { bubbles: true }));
         refInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
@@ -216,9 +214,10 @@
     }
 
     function updateTitle() {
-        title.textContent = `قائمة المعاملات (${getRemainingCount()})`;
+        const text = `قائمة المعاملات (${getRemainingCount()})`;
+        title.textContent = text;
         const treeLabel = document.getElementById('notes_label');
-        if (treeLabel) treeLabel.textContent = `قائمة المعاملات (${getRemainingCount()})`;
+        if (treeLabel) treeLabel.textContent = text;
     }
 
     function renderList(numbers) {
@@ -296,21 +295,16 @@
             .map(l => l.trim())
             .filter(l => l !== '');
 
-        if (lines.length === 0) {
-            hideInputOverlay();
-            copiedSet.clear();
-            renderList([]);
-            saveState();
-            if (panelVisible) togglePanel();
-            return;
-        }
-
         hideInputOverlay();
         copiedSet.clear();
         renderList(lines);
         saveState();
 
-        if (!panelVisible) togglePanel();
+        if (lines.length === 0) {
+            if (panelVisible) togglePanel();
+        } else if (!panelVisible) {
+            togglePanel();
+        }
     };
 
     cancelBtn.onclick = () => {
@@ -318,14 +312,28 @@
     };
 
     // ── إضافة العنصر في شجرة الـ jstree ───────────────────
+    function findMarasalatiItem() {
+        // بالمعرّف أولاً، ثم بالنص كاحتياط لو اختلف المعرّف
+        return document.getElementById('95818') ||
+            [...document.querySelectorAll('li.jstree-node[aria-level="1"]')]
+                .find(li => {
+                    const a = li.querySelector(':scope > a.jstree-anchor');
+                    return a && a.textContent.trim() === 'مراسلاتي';
+                });
+    }
+
     function injectNotesTreeItem() {
-        const marasalatiItem = document.getElementById('95818');
+        if (document.getElementById('notes_item')) return; // موجود مسبقاً
+
+        const marasalatiItem = findMarasalatiItem();
         if (!marasalatiItem) return;
 
         const rootUl = marasalatiItem.parentElement;
         if (!rootUl) return;
 
-        marasalatiItem.classList.remove('jstree-last');
+        // إزالة jstree-last من أي عنصر أخير حالياً، أياً كان
+        rootUl.querySelectorAll(':scope > li.jstree-last')
+            .forEach(li => li.classList.remove('jstree-last'));
 
         const newLi = document.createElement('li');
         newLi.setAttribute('role', 'treeitem');
@@ -347,33 +355,33 @@
                       style="font-size:16px; font-weight:bold; color:#009879; padding: 0 4px; line-height:1;">+</span>
             </a>`;
 
-        const anchor = newLi.querySelector('#notes_anchor');
-        const addBtn = newLi.querySelector('#notes_arrow');
-
         // زر + → فتح/إغلاق نافذة الإدخال
-        addBtn.addEventListener('click', (e) => {
+        newLi.querySelector('#notes_arrow').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleInputOverlay();
         });
 
         // الضغط على النص → عرض/إخفاء القائمة
-        anchor.addEventListener('click', (e) => {
+        newLi.querySelector('#notes_anchor').addEventListener('click', (e) => {
             e.preventDefault();
             togglePanel();
         });
 
         rootUl.appendChild(newLi);
 
-        if (saved.notes.length > 0) {
+        // عند إعادة الإضافة نستخدم القائمة الحالية، لا المحفوظة القديمة
+        if (currentNumbers.length > 0) {
+            updateTitle();
+        } else if (saved.notes.length > 0) {
             renderList(saved.notes);
         }
     }
 
-    if (document.readyState === 'complete') {
-        injectNotesTreeItem();
-    } else {
-        window.addEventListener('load', injectNotesTreeItem);
-    }
+    // محاولة فورية + مراقبة دائمة: يُضاف الزر متى ظهرت الشجرة، ويرجع لو أعاد jstree رسمها
+    injectNotesTreeItem();
+    new MutationObserver(() => {
+        if (!document.getElementById('notes_item')) injectNotesTreeItem();
+    }).observe(document.body, { childList: true, subtree: true });
 
 })();
