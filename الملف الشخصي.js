@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         دمج الترتيب تصاعدي وتنازلي والتواريخ والايقونات في الملف الشخصي
 // @namespace    http://rasel/CTS/
-// @version      29.3
+// @version      29.2
 // @description  Hijri/Gregorian switcher + Dynamic Toast + Dynamic Icons Switcher + Continuous Date Overlay for DynamicAttributes & VisualTrackList
 // @match        http://rasel/CTS/*
 // @match        http://rasel/CTS/ShowPageCustom*
@@ -414,8 +414,7 @@
                     nodes.push({
                         names: [normalize(parts[2]), normalize(parts[3])].filter(Boolean),
                         date: dateM ? `${dateM[1]}${dateM[2]}${dateM[3]}` : '',
-                        isCopy: iconIdx > 0 && parts[iconIdx - 1].trim() === "true",
-                        isLeaf: !(node.children && node.children.length)
+                        isCopy: iconIdx > 0 && parts[iconIdx - 1].trim() === "true"
                     });
                     if (node.children) node.children.forEach(parseTree);
                 };
@@ -449,14 +448,13 @@
                     // 2. تلوين الأصل والنسخة من الشجرة (أخضر للأصل، وأصفر هادئ للنسخة)
                     // المطابقة باسم الجهة/المستخدم في خانة «إلى»، وعند التكرار نفضّل العقدة التي لها نفس التاريخ
                     let isCopy = false;
-                    let isLeaf = false;
                     const toN = normalize(toCell.textContent);
                     if (rowStatusCache && toN) {
                         const candidates = rowStatusCache.filter(n => n.names.includes(toN));
                         const dm = (cells[2]?.textContent || '').match(/(20\d{2})[-/](\d{1,2})[-/](\d{1,2})|(\d{1,2})[-/](\d{1,2})[-/](20\d{2})/);
                         const rowDate = dm ? (dm[1] ? dm[1] + dm[2].padStart(2, '0') + dm[3].padStart(2, '0') : dm[6] + dm[5].padStart(2, '0') + dm[4].padStart(2, '0')) : '';
                         const match = candidates.find(n => rowDate && n.date === rowDate) || candidates[0];
-                        if (match) { isCopy = match.isCopy; isLeaf = match.isLeaf; }
+                        if (match) isCopy = match.isCopy;
                     }
 
                     toCell.style.setProperty('background-color', isCopy ? '#fff3cd' : '#d4edda', 'important');
@@ -464,12 +462,7 @@
                     toCell.style.setProperty('font-weight', 'bold', 'important');
 
                     // 3. شروط قطاع الشمال المخصصة
-                    // المعاملة متوقفة عند قطاع الشمال (العقدة في الهيكل ليس تحتها أي إحالة) -> أزرق، وله الأولوية على الأصفر والأحمر
-                    if (isNorth(toText) && isLeaf) {
-                        toCell.style.setProperty('background-color', '#9ec5fe', 'important');
-                        toCell.style.setProperty('color', '#052c65', 'important');
-                    }
-                    else if (isNorth(toText)) {
+                    if (isNorth(toText)) {
                         // يكفي أن يكون أي صف من الثلاثة التي تعلوه فيه موظف A/B
                         // استثناء: إذا كان الصف الذي فوقه مباشرة محالاً إلى «مساعد الأمين للقطاعات البلدية» يُتجاوز، وتُحسب الثلاثة التي فوقه
                         const start = isAssistant(rows[idx - 1]) ? idx - 1 : idx;
